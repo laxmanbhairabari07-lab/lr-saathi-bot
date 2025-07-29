@@ -41,3 +41,7 @@ def home():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    @app.route('/send_test')
+def send_test():
+    send_telegram_message("✅ Test message from LR Saathi backend.")
+    return "Test message sent!"
