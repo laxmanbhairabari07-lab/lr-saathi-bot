@@ -1,28 +1,43 @@
-from fastapi import FastAPI, Request
+from flask import Flask, request, jsonify
 import requests
-import os
 
-app = FastAPI()
+app = Flask(__name__)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
+# Telegram Bot Token and Chat ID
+BOT_TOKEN = '8386503951:AAFcvtXMmvJSQ-3rMB78lGAEjypb6yYuEN4'
 
-@app.get("/")
-def root():
-    return {"message": "LR Saathi Bot Running ✅"}
-
-@app.post("/webhook")
-async def telegram_webhook(req: Request):
-    data = await req.json()
-    message = data.get("message", {}).get("text", "")
-    chat_id = data.get("message", {}).get("chat", {}).get("id", "")
-
-    if message.lower() == "/start":
-        send_message(chat_id, "🚀 Namaste LR Bhai! Saathi Bot ready hai!")
-
-    return {"ok": True}
-
+# Function to send message
 def send_message(chat_id, text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text}
-    requests.post(url, data=payload)
+    payload = {
+        "chat_id": chat_id,
+        "text": text
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    requests.post(url, json=payload, headers=headers)
+
+# Webhook route
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    data = request.get_json()
+
+    if 'message' in data:
+        chat_id = data['message']['chat']['id']
+        text = data['message']['text']
+
+        if text == "/start":
+            send_message(chat_id, "Namaste LR! LR Saathi taiyaar hai.")
+        else:
+            send_message(chat_id, f"Apne bheja: {text}")
+
+    return jsonify({"status": "ok"})
+
+# Root route (optional)
+@app.route('/')
+def home():
+    return "LR Saathi Bot is running!"
+
+if __name__ == '__main__':
+    app.run(debug=True)
