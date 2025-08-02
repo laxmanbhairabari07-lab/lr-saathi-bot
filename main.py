@@ -1,81 +1,150 @@
-from fastapi import FastAPI, Request, HTTPException
-import requests
 import os
-from typing import Dict, Any
+import re
+import requests
+import pandas as pd
+from datetime import datetime
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes,
+    CallbackQueryHandler
+)
 
-app = FastAPI()
+# Configuration
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+ADMIN_CHAT_ID = "YOUR_CHAT_ID"  # अपनी चैट ID डालें
 
-# ✅ Environment Variables
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-TARGET_CHAT_ID = os.getenv("TARGET_CHAT_ID")  # जहां मैसेज फॉरवर्ड करना है
+# Global Variables
+TRADING_DATA = {
+    "crypto": ["BTC/USDT", "ETH/USDT"],
+    "indices": ["BANKNIFTY", "NIFTY", "FINNIFTY"],
+    "stocks": [],
+    "alerts": {}
+}
 
-# ✅ Root endpoint
-@app.get("/")
-def read_root():
-    return {"status": "active", "service": "Telegram Bot Webhook"}
+# ------------------- Helper Functions -------------------
+async def fetch_market_data(symbol: str):
+    """Fetch real-time market data from API"""
+    # Add your market data API integration here
+    return f"{symbol} की जानकारी प्राप्त हुई"
 
-# ✅ Webhook handler with proper message processing
-@app.post("/webhook")
-async def telegram_webhook(request: Request):
-    try:
-        data: Dict[str, Any] = await request.json()
-        print("Received update:", data)
+async def analyze_option_chain(symbol: str):
+    """Analyze option chain data"""
+    return f"{symbol} का ऑप्शन चेन विश्लेषण"
 
-        # सिर्फ मैसेज अपडेट को प्रोसेस करें
-        if "message" in data:
-            message = data["message"]
-            chat_id = message["chat"]["id"]
-            text = message.get("text", "")
-            
-            # /start कमांड के लिए विशेष रिस्पॉन्स
-            if text.startswith("/start"):
-                response_text = "🚀 LR Saathi Bot आपकी सेवा में!\n\nमैसेज भेजें और वह आपके ग्रुप में फॉरवर्ड हो जाएगा।"
-            else:
-                # मूल प्रेषक की जानकारी
-                sender_name = message["from"].get("first_name", "User")
-                
-                # टार्गेट चैट में मैसेज फॉरवर्ड करें
-                if TARGET_CHAT_ID and text:
-                    forward_text = f"📩 नया संदेश ({sender_name}): {text}"
-                    send_telegram_message(TARGET_CHAT_ID, forward_text)
-                
-                response_text = f"✔️ आपका संदेश प्राप्त हुआ: {text[:50]}..."
+async def detect_breakout(symbol: str):
+    """Detect breakout patterns"""
+    return f"{symbol} में ब्रेकआउट संकेत"
 
-            # यूजर को रिस्पॉन्स भेजें
-            send_telegram_message(chat_id, response_text)
-
-        return {"status": "processed"}
+# ------------------- Command Handlers -------------------
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("क्रिप्टो", callback_data="crypto"),
+        InlineKeyboardButton("इंडेक्स", callback_data="indices")],
+        [InlineKeyboardButton("स्टॉक्स", callback_data="stocks"),
+        InlineKeyboardButton("IPO", callback_data="ipo")],
+        [InlineKeyboardButton("ऑप्शन चेन", callback_data="option_chain")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
-    except Exception as e:
-        print(f"Error processing update: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+    await update.message.reply_text(
+        "📊 **LR Saathi Trading Terminal**\n\n"
+        "नीचे से मार्केट सेक्टर चुनें:",
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
 
-# ✅ Telegram मैसेज भेजने के लिए हेल्पर फंक्शन
-def send_telegram_message(chat_id: str, text: str):
-    if not BOT_TOKEN:
-        print("Error: BOT_TOKEN not configured")
-        return
-        
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML"
-    }
-    try:
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
-        print("Message sent successfully")
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Failed to send message: {e}")
-
-# ✅ टेस्ट एंडपॉइंट
-@app.get("/test")
-def test_endpoint():
-    test_message = "🟢 बॉट सही तरीके से काम कर रहा है!\n\nServer Time: " + str(datetime.now())
+async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
     
-    if TARGET_CHAT_ID:
-        send_telegram_message(TARGET_CHAT_ID, test_message)
-        return {"status": "test_message_sent"}
-    return {"status": "chat_id_not_configured"}
+    if query.data == "crypto":
+        await crypto_menu(update, context)
+    elif query.data == "indices":
+        await indices_menu(update, context)
+    # Add other menu handlers
+
+# ------------------- Market Menu Handlers -------------------
+async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("BTC/USDT", callback_data="crypto_BTC")],
+        [InlineKeyboardButton("ETH/USDT", callback_data="crypto_ETH")],
+        [InlineKeyboardButton("वापस", callback_data="back")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.callback_query.message.edit_text(
+        "💰 **क्रिप्टो मार्केट**\n\nकॉइन चुनें:",
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
+
+async def indices_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("BANKNIFTY", callback_data="indices_BANKNIFTY")],
+        [InlineKeyboardButton("NIFTY", callback_data="indices_NIFTY")],
+        [InlineKeyboardButton("FINNIFTY", callback_data="indices_FINNIFTY")],
+        [InlineKeyboardButton("वापस", callback_data="back")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.callback_query.message.edit_text(
+        "📈 **इंडेक्स मार्केट**\n\nइंडेक्स चुनें:",
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
+
+# ------------------- Message Handlers -------------------
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message.text.upper()
+    
+    # ट्रेडिंग सिग्नल प्रोसेसिंग
+    if "BUY" in msg or "SELL" in msg:
+        await process_signal(update, context)
+    
+    # IPO अलर्ट
+    elif "IPO" in msg:
+        await ipo_alert(update, context)
+    
+    # सपोर्ट/रेजिस्टेंस
+    elif "SUPPORT" in msg or "RESISTANCE" in msg:
+        await support_resistance(update, context)
+    
+    # ऑप्शन चेन
+    elif "OPTION CHAIN" in msg:
+        await option_chain(update, context)
+
+async def process_signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # सिग्नल प्रोसेसिंग लॉजिक
+    pass
+
+async def ipo_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # IPO अलर्ट लॉजिक
+    pass
+
+# ------------------- Main Application -------------------
+def main():
+    application = Application.builder().token(BOT_TOKEN).build()
+    
+    # कमांड हैंडलर्स
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", start))
+    
+    # बटन क्लिक हैंडलर्स
+    application.add_handler(CallbackQueryHandler(handle_button_click))
+    
+    # मैसेज हैंडलर्स
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    # Webhook कॉन्फिगरेशन
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.getenv("PORT", 10000)),
+        webhook_url="https://your-app-name.onrender.com"
+    )
+
+if __name__ == "__main__":
+    main()
