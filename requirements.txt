@@ -4,5 +4,7 @@ uvicorn==0.22.0
 requests==2.31.0
 gunicorn==20.1.0
 python-dotenv==1.0.0
-pandas==2.0.3
-numpy==1.24.3
+pandas>=2.1.0  # नया वर्जन
+numpy>=1.26.0  # नया वर्जन
+setuptools>=65.5.1
+wheel
