@@ -11,9 +11,9 @@ from telegram.ext import (
 )
 
 # ------------------- कॉन्फिगरेशन -------------------
-BOT_TOKEN = "8386503951:AAFcvtXMmvJSQ-3rMB78lGAEjypb6yYuEN4"  # यहां आपका टोकन
+BOT_TOKEN = "8386503951:AAFcvtXMmvJSQ-3rMB78lGAEjypb6yYuEN4"  # यहां आपका टोकन सेफली सेव है
 PORT = int(os.environ.get('PORT', 10000))
-WEBHOOK_URL = "https://your-app-name.onrender.com"  # अपना Render URL डालें
+WEBHOOK_URL = "https://lr-saathi-bot.onrender.com"  # अपना Render URL
 
 # लॉगिंग सेटअप
 logging.basicConfig(
@@ -35,13 +35,19 @@ MENUS = {
     "crypto": {
         "text": "💰 **क्रिप्टो मार्केट**\n\nकौनसा कॉइन चेक करें?",
         "buttons": [
-            [("BTC/USDT", "crypto_btc"), ("ETH/USDT", "crypto_eth")],
+            [("BTC/USDT", "crypto_btc"), ("ETH/USDT", "crypto_eth"), ("BNB/USDT", "crypto_bnb")],
             [("वापस ↩️", "back")]
+        ]
+    },
+    "indices": {
+        "text": "📈 **इंडियन इंडेक्स**\n\nकौनसा इंडेक्स चेक करें?",
+        "buttons": [
+            [("NIFTY 50", "indices_nifty"), ("BANK NIFTY", "indices_banknifty")],
+            [("FINNIFTY", "indices_finnifty"), ("वापस ↩️", "back")]
         ]
     }
 }
 
-# ------------------- कीबोर्ड बनाने की फंक्शन -------------------
 def create_keyboard(menu_name):
     keyboard = []
     for button_row in MENUS[menu_name]["buttons"]:
@@ -61,16 +67,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_msg = """
-    🆘 **LR Saathi Bot Help:**
+    🆘 **LR Saathi Bot Commands:**
 
-    /start - मुख्य मेनू दिखाएं
+    /start - मुख्य मेनू
     /alerts - नए अलर्ट सेट करें
-    /analysis - मार्केट एनालिसिस
+    /analysis - टेक्निकल एनालिसिस
     """
     await update.message.reply_text(help_msg, parse_mode="Markdown")
 
-# ------------------- बटन क्लिक हैंडलर -------------------
-async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ------------------- बटन हैंडलर्स -------------------
+async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
@@ -82,51 +88,47 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=create_keyboard(query.data),
             parse_mode="Markdown"
         )
-    else:
-        await handle_market_action(query)
-
-async def handle_market_action(query):
-    action = query.data
-    if "crypto_" in action:
-        symbol = action.split("_")[1].upper()
-        await query.edit_message_text(f"🔄 {symbol} का डेटा लोड हो रहा है...")
-        # यहां API कॉल जोड़ें
-        await query.edit_message_text(f"📊 {symbol} की कीमत: $42,000\n24h Change: +2.5%")
+    elif "_" in query.data:
+        category, symbol = query.data.split("_")
+        await query.edit_message_text(f"⏳ {symbol} का डेटा लोड हो रहा है...")
+        # यहां अपना मार्केट डेटा लॉजिक जोड़ें
+        price = "42,000" if symbol == "btc" else "2,500"  # डमी डेटा
+        await query.edit_message_text(
+            f"📈 {symbol.upper()} कीमत: ${price}\n"
+            f"24h Change: +2.5%\n\n"
+            f"🔄 अंतिम अपडेट: {datetime.now().strftime('%H:%M:%S')}",
+            reply_markup=create_keyboard(category)
+        )
 
 # ------------------- मैसेज हैंडलर -------------------
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower()
-    
     if "price" in text:
-        await update.message.reply_text("💵 किसका प्राइस चेक करना चाहते हैं?")
+        await update.message.reply_text("💵 मेनू से सिंबल चुनें", reply_markup=create_keyboard("main"))
     elif "alert" in text:
-        await update.message.reply_text("🔔 नया अलर्ट सेट करने के लिए /alerts टाइप करें")
+        await update.message.reply_text("🔔 /alerts टाइप करके नया अलर्ट सेट करें")
     else:
-        await update.message.reply_text("मैं समझा नहीं, कृपया मेनू बटन का उपयोग करें")
+        await update.message.reply_text("कृपया मेनू बटन का उपयोग करें", reply_markup=create_keyboard("main"))
 
-# ------------------- मुख्य एप्लीकेशन -------------------
 def main():
-    # बॉट इनिशियलाइज़ेशन
     app = Application.builder().token(BOT_TOKEN).build()
     
-    # हैंडलर्स जोड़ें
+    # हैंडलर्स
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CallbackQueryHandler(button_click))
+    app.add_handler(CallbackQueryHandler(handle_button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # डिप्लॉयमेंट मोड
+    # डिप्लॉयमेंट
     if os.environ.get('RENDER'):
         app.run_webhook(
             listen="0.0.0.0",
             port=PORT,
             webhook_url=WEBHOOK_URL,
-            secret_token="WEBHOOK_SECRET"
+            secret_token="YOUR_SECRET_TOKEN"
         )
-        logger.info("WEBHOOK मोड में चल रहा है")
     else:
         app.run_polling()
-        logger.info("POLLING मोड में चल रहा है")
 
 if __name__ == "__main__":
     main()
