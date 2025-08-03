@@ -143,7 +143,7 @@ def main():
     application.run_webhook(
         listen="0.0.0.0",
         port=int(os.getenv("PORT", 10000)),
-        webhook_url="https://your-app-name.onrender.com"
+        webhook_url="https://lr-saathi-bot.onrender.com"
     )
 
 if __name__ == "__main__":
