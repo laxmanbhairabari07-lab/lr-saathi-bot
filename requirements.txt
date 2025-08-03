@@ -1,10 +1,13 @@
-python-telegram-bot==20.0
+python-telegram-bot==20.3  # नया स्टेबल वर्जन
 fastapi==0.95.2
 uvicorn==0.22.0
 requests==2.31.0
-gunicorn==20.1.0
+gunicorn==21.2.0  # नया वर्जन
 python-dotenv==1.0.0
-pandas>=2.1.0  # नया वर्जन
-numpy>=1.26.0  # नया वर्जन
-setuptools>=65.5.1
-wheel
+pandas==2.1.3  # फिक्स्ड वर्जन (नए वर्जन में कभी-कभी इशू आते हैं)
+numpy==1.26.0  # पांडास के साथ कंपेटिबल
+aiohttp==3.8.5  # टेलीग्राम बॉट के लिए जरूरी
+cachetools==5.3.1  # API कॉल्स को कैश करने के लिए
+python-multipart==0.0.6  # FastAPI के लिए जरूरी
+ta-lib==0.4.24  # टेक्निकल इंडिकेटर्स के लिए
+yfinance==0.2.18  # मार्केट डेटा के लिए
