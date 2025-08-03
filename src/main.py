@@ -1,150 +1,132 @@
 import os
-import re
-import requests
-import pandas as pd
-from datetime import datetime
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
-    MessageHandler,
-    filters,
+    CallbackQueryHandler,
     ContextTypes,
-    CallbackQueryHandler
+    MessageHandler,
+    filters
 )
 
-# Configuration
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-ADMIN_CHAT_ID = "YOUR_CHAT_ID"  # अपनी चैट ID डालें
+# ------------------- कॉन्फिगरेशन -------------------
+BOT_TOKEN = "8386503951:AAFcvtXMmvJSQ-3rMB78lGAEjypb6yYuEN4"  # यहां आपका टोकन
+PORT = int(os.environ.get('PORT', 10000))
+WEBHOOK_URL = "https://your-app-name.onrender.com"  # अपना Render URL डालें
 
-# Global Variables
-TRADING_DATA = {
-    "crypto": ["BTC/USDT", "ETH/USDT"],
-    "indices": ["BANKNIFTY", "NIFTY", "FINNIFTY"],
-    "stocks": [],
-    "alerts": {}
+# लॉगिंग सेटअप
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# ------------------- मेनू स्ट्रक्चर -------------------
+MENUS = {
+    "main": {
+        "text": "📊 **LR Saathi Trading Terminal**\n\nक्या चेक करना चाहते हैं?",
+        "buttons": [
+            [("क्रिप्टो 🪙", "crypto"), ("इंडेक्स 📈", "indices")],
+            [("स्टॉक्स 💼", "stocks"), ("ऑप्शन चेन 📊", "option_chain")],
+            [("अलर्ट ⏰", "alerts"), ("हेल्प ❓", "help")]
+        ]
+    },
+    "crypto": {
+        "text": "💰 **क्रिप्टो मार्केट**\n\nकौनसा कॉइन चेक करें?",
+        "buttons": [
+            [("BTC/USDT", "crypto_btc"), ("ETH/USDT", "crypto_eth")],
+            [("वापस ↩️", "back")]
+        ]
+    }
 }
 
-# ------------------- Helper Functions -------------------
-async def fetch_market_data(symbol: str):
-    """Fetch real-time market data from API"""
-    # Add your market data API integration here
-    return f"{symbol} की जानकारी प्राप्त हुई"
+# ------------------- कीबोर्ड बनाने की फंक्शन -------------------
+def create_keyboard(menu_name):
+    keyboard = []
+    for button_row in MENUS[menu_name]["buttons"]:
+        row = []
+        for btn_text, btn_data in button_row:
+            row.append(InlineKeyboardButton(btn_text, callback_data=btn_data))
+        keyboard.append(row)
+    return InlineKeyboardMarkup(keyboard)
 
-async def analyze_option_chain(symbol: str):
-    """Analyze option chain data"""
-    return f"{symbol} का ऑप्शन चेन विश्लेषण"
-
-async def detect_breakout(symbol: str):
-    """Detect breakout patterns"""
-    return f"{symbol} में ब्रेकआउट संकेत"
-
-# ------------------- Command Handlers -------------------
+# ------------------- कमांड हैंडलर्स -------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("क्रिप्टो", callback_data="crypto"),
-        InlineKeyboardButton("इंडेक्स", callback_data="indices")],
-        [InlineKeyboardButton("स्टॉक्स", callback_data="stocks"),
-        InlineKeyboardButton("IPO", callback_data="ipo")],
-        [InlineKeyboardButton("ऑप्शन चेन", callback_data="option_chain")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
     await update.message.reply_text(
-        "📊 **LR Saathi Trading Terminal**\n\n"
-        "नीचे से मार्केट सेक्टर चुनें:",
-        reply_markup=reply_markup,
+        MENUS["main"]["text"],
+        reply_markup=create_keyboard("main"),
         parse_mode="Markdown"
     )
 
-async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    help_msg = """
+    🆘 **LR Saathi Bot Help:**
+
+    /start - मुख्य मेनू दिखाएं
+    /alerts - नए अलर्ट सेट करें
+    /analysis - मार्केट एनालिसिस
+    """
+    await update.message.reply_text(help_msg, parse_mode="Markdown")
+
+# ------------------- बटन क्लिक हैंडलर -------------------
+async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
-    if query.data == "crypto":
-        await crypto_menu(update, context)
-    elif query.data == "indices":
-        await indices_menu(update, context)
-    # Add other menu handlers
+    if query.data == "back":
+        await start(update, context)
+    elif query.data in MENUS:
+        await query.edit_message_text(
+            MENUS[query.data]["text"],
+            reply_markup=create_keyboard(query.data),
+            parse_mode="Markdown"
+        )
+    else:
+        await handle_market_action(query)
 
-# ------------------- Market Menu Handlers -------------------
-async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("BTC/USDT", callback_data="crypto_BTC")],
-        [InlineKeyboardButton("ETH/USDT", callback_data="crypto_ETH")],
-        [InlineKeyboardButton("वापस", callback_data="back")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.callback_query.message.edit_text(
-        "💰 **क्रिप्टो मार्केट**\n\nकॉइन चुनें:",
-        reply_markup=reply_markup,
-        parse_mode="Markdown"
-    )
+async def handle_market_action(query):
+    action = query.data
+    if "crypto_" in action:
+        symbol = action.split("_")[1].upper()
+        await query.edit_message_text(f"🔄 {symbol} का डेटा लोड हो रहा है...")
+        # यहां API कॉल जोड़ें
+        await query.edit_message_text(f"📊 {symbol} की कीमत: $42,000\n24h Change: +2.5%")
 
-async def indices_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("BANKNIFTY", callback_data="indices_BANKNIFTY")],
-        [InlineKeyboardButton("NIFTY", callback_data="indices_NIFTY")],
-        [InlineKeyboardButton("FINNIFTY", callback_data="indices_FINNIFTY")],
-        [InlineKeyboardButton("वापस", callback_data="back")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.callback_query.message.edit_text(
-        "📈 **इंडेक्स मार्केट**\n\nइंडेक्स चुनें:",
-        reply_markup=reply_markup,
-        parse_mode="Markdown"
-    )
-
-# ------------------- Message Handlers -------------------
+# ------------------- मैसेज हैंडलर -------------------
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = update.message.text.upper()
+    text = update.message.text.lower()
     
-    # ट्रेडिंग सिग्नल प्रोसेसिंग
-    if "BUY" in msg or "SELL" in msg:
-        await process_signal(update, context)
-    
-    # IPO अलर्ट
-    elif "IPO" in msg:
-        await ipo_alert(update, context)
-    
-    # सपोर्ट/रेजिस्टेंस
-    elif "SUPPORT" in msg or "RESISTANCE" in msg:
-        await support_resistance(update, context)
-    
-    # ऑप्शन चेन
-    elif "OPTION CHAIN" in msg:
-        await option_chain(update, context)
+    if "price" in text:
+        await update.message.reply_text("💵 किसका प्राइस चेक करना चाहते हैं?")
+    elif "alert" in text:
+        await update.message.reply_text("🔔 नया अलर्ट सेट करने के लिए /alerts टाइप करें")
+    else:
+        await update.message.reply_text("मैं समझा नहीं, कृपया मेनू बटन का उपयोग करें")
 
-async def process_signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # सिग्नल प्रोसेसिंग लॉजिक
-    pass
-
-async def ipo_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # IPO अलर्ट लॉजिक
-    pass
-
-# ------------------- Main Application -------------------
+# ------------------- मुख्य एप्लीकेशन -------------------
 def main():
-    application = Application.builder().token(BOT_TOKEN).build()
+    # बॉट इनिशियलाइज़ेशन
+    app = Application.builder().token(BOT_TOKEN).build()
     
-    # कमांड हैंडलर्स
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", start))
+    # हैंडलर्स जोड़ें
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CallbackQueryHandler(button_click))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # बटन क्लिक हैंडलर्स
-    application.add_handler(CallbackQueryHandler(handle_button_click))
-    
-    # मैसेज हैंडलर्स
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # Webhook कॉन्फिगरेशन
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.getenv("PORT", 10000)),
-        webhook_url="https://lr-saathi-bot.onrender.com"
-    )
+    # डिप्लॉयमेंट मोड
+    if os.environ.get('RENDER'):
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            webhook_url=WEBHOOK_URL,
+            secret_token="WEBHOOK_SECRET"
+        )
+        logger.info("WEBHOOK मोड में चल रहा है")
+    else:
+        app.run_polling()
+        logger.info("POLLING मोड में चल रहा है")
 
 if __name__ == "__main__":
     main()
