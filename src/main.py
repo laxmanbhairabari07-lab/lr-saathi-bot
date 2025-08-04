@@ -1,8 +1,12 @@
 import os
 import logging
 import asyncio
+import uvicorn
+from dotenv import load_dotenv
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
+from fastapi import FastAPI, Request
 from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
