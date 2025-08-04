@@ -1,5 +1,5 @@
 # Core Packages
-python-telegram-bot==20.3  # बॉट के लिए मुख्य लाइब्रेरी
+python-telegram-bot==20.8  # बॉट के लिए मुख्य लाइब्रेरी
 aiohttp==3.8.5  # एसिंक्रोनस रिक्वेस्ट्स के लिए
 flask==2.3.2
 gunicorn==21.2.0  # प्रोडक्शन सर्वर
