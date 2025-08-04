@@ -1,5 +1,7 @@
 import os
 import logging
+import asyncio
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -11,9 +13,9 @@ from telegram.ext import (
 )
 
 # ------------------- कॉन्फिगरेशन -------------------
-BOT_TOKEN = "8386503951:AAFcvtXMmvJSQ-3rMB78lGAEjypb6yYuEN4"  # यहां आपका टोकन सेफली सेव है
+BOT_TOKEN = "8386503951:AAEs30I2Jl3acAD38Ipq_zFknjk8HOezUL4"  # ✅ आपका टोकन यही रहेगा
 PORT = int(os.environ.get('PORT', 10000))
-WEBHOOK_URL = "https://lr-saathi-bot.onrender.com"  # अपना Render URL
+WEBHOOK_URL = "https://lr-saathi-bot.onrender.com"  # ✅ Render का URL
 
 # लॉगिंग सेटअप
 logging.basicConfig(
@@ -79,7 +81,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
+
     if query.data == "back":
         await start(update, context)
     elif query.data in MENUS:
@@ -90,9 +92,11 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     elif "_" in query.data:
         category, symbol = query.data.split("_")
-        await query.edit_message_text(f"⏳ {symbol} का डेटा लोड हो रहा है...")
-        # यहां अपना मार्केट डेटा लॉजिक जोड़ें
-        price = "42,000" if symbol == "btc" else "2,500"  # डमी डेटा
+        await query.edit_message_text(f"⏳ {symbol.upper()} का डेटा लोड हो रहा है...")
+        await asyncio.sleep(1)  # ✅ थोड़ा टाइम दें लोडिंग दिखाने के लिए
+
+        # डमी डेटा (बाद में रियल टाइम API से जोड़ सकते हैं)
+        price = "42000" if symbol == "btc" else "2500"
         await query.edit_message_text(
             f"📈 {symbol.upper()} कीमत: ${price}\n"
             f"24h Change: +2.5%\n\n"
@@ -110,22 +114,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("कृपया मेनू बटन का उपयोग करें", reply_markup=create_keyboard("main"))
 
+# ------------------- रन एप्लिकेशन -------------------
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
-    
+
     # हैंडलर्स
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CallbackQueryHandler(handle_button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # डिप्लॉयमेंट
+
+    # Render या local deployment
     if os.environ.get('RENDER'):
         app.run_webhook(
             listen="0.0.0.0",
             port=PORT,
             webhook_url=WEBHOOK_URL,
-            secret_token="YOUR_SECRET_TOKEN"
+            secret_token="lrsaathisecret"  # ✅ चाहे तो .env से लें या hardcoded रहने दें
         )
     else:
         app.run_polling()
