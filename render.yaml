@@ -5,15 +5,3 @@ services:
     region: oregon
     plan: free
     runtime: python
-    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
-    startCommand: "gunicorn src.main:app --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:10000"
-    envVars:
-      - key: TELEGRAM_TOKEN
-        value: YOUR_ACTUAL_TELEGRAM_BOT_TOKEN
-      - key: CHAT_ID
-        value: YOUR_ACTUAL_CHAT_ID
-      - key: PORT
-        value: 10000
-      - key: ENV
-        value: production
-    pythonVersion: 3.10.12
