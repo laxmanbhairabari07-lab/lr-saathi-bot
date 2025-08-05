@@ -22,3 +22,4 @@ requests==2.32.3  # सिंपल HTTP रिक्वेस्ट्स
 pip==23.3.1  # स्टेबल वर्जन
 setuptools==68.0.0
 wheel==0.41.2
+setuptools==68.2.2
