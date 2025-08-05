@@ -20,6 +20,5 @@ python-dotenv==1.0.1  # .env फाइल सपोर्ट
 cachetools==5.3.1  # API कैशिंग
 requests==2.32.3  # सिंपल HTTP रिक्वेस्ट्स
 setuptools==68.0.0
-pip==25.2  # स्टेबल वर्जन
 wheel==0.41.2
-setuptools==68.2.2
+
