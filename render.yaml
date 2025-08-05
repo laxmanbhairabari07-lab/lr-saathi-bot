@@ -12,3 +12,5 @@ services:
         value: YOUR_ACTUAL_TELEGRAM_BOT_TOKEN
       - key: CHAT_ID
         value: YOUR_ACTUAL_CHAT_ID
+      - key: PORT
+        value: 10000
