@@ -14,3 +14,6 @@ services:
         value: YOUR_ACTUAL_CHAT_ID
       - key: PORT
         value: 10000
+      - key: ENV
+        value: production
+    pythonVersion: 3.10.12
